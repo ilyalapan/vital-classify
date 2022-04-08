@@ -10,9 +10,9 @@ Additionally, do `pip install pytorch-pretrained-bert` for getting BERT model cl
 
 ## Pretrained models
 
-Models are stored in (Google Drive)[https://drive.google.com/drive/folders/14zBJwsJvjo0eGZfnvJoBUcUKc1huv5eE?usp=sharing]. Recommend using `finetuned_pytorch_model_32_ep5.bin` or `finetuned_pytorch_model_32_ep7.bin`. Epoch-3 version could be used as a checkpoint for fine-tuning the model given num_classes fixed.
+Models are stored in [Google Drive](https://drive.google.com/drive/folders/14zBJwsJvjo0eGZfnvJoBUcUKc1huv5eE?usp=sharing). Recommend using `finetuned_pytorch_model_32_ep5.bin` or `finetuned_pytorch_model_32_ep7.bin`. Epoch-3 version could be used as a checkpoint for fine-tuning the model given num_classes fixed.
 
-The model performs considerably well on the dataset used for training ((Kaggle dataset)[https://www.kaggle.com/rmisra/news-category-dataset])
+The model performs considerably well on the dataset used for training ([Kaggle dataset](https://www.kaggle.com/rmisra/news-category-dataset))
 - 89% accuracy on validation set
 - 87.9% accuracy on test set
 
