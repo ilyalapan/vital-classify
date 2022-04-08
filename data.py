@@ -1,6 +1,8 @@
 import logging
 import os
 import pandas as pd
+import torch
+from torch.utils.data import TensorDataset, DataLoader, RandomSampler
 
 
 class InputExample(object):
@@ -13,14 +15,11 @@ class InputExample(object):
             guid: Unique id for the example.
             text_a: string. The untokenized text of the first sequence. For single
             sequence tasks, only this sequence must be specified.
-            text_b: (Optional) string. The untokenized text of the second sequence.
-            Only must be specified for sequence pair tasks.
             labels: (Optional) [string]. The label of the example. This should be
             specified for train and dev examples, but not for test examples.
         """
         self.guid = guid
         self.text_a = text_a
-        self.text_b = text_b
         self.labels = labels
 
 
@@ -33,6 +32,7 @@ class InputFeatures(object):
         self.segment_ids = segment_ids
         self.label_ids = label_ids
 
+        
 class DataProcessor(object):
     """Base class for data converters for sequence classification data sets."""
 
@@ -51,60 +51,55 @@ class DataProcessor(object):
     def get_labels(self):
         """Gets the list of labels for this data set."""
         raise NotImplementedError()
+
+        
 class LabelTextProcessor(DataProcessor):
     def __init__(self, data_dir, labels=[]):
         self.data_dir = data_dir
         self.labels = labels
     
-    def get_train_examples(self, data_dir, size=-1, logger = None):
-        filename = 'train.csv'
-        logger.info("LOOKING AT {}".format(os.path.join(data_dir, filename)))
-        if size == -1:
-            data_df = pd.read_csv(os.path.join(data_dir, filename), engine=None, index_col=0)
-            return self._create_examples(data_df, "train")
-        else:
-            data_df = pd.read_csv(os.path.join(data_dir, filename), index_col=0)
-            return self._create_examples(data_df.sample(size), "train")
-        
-    def get_dev_examples(self, data_dir, size=-1):
-        """See base class."""
-        filename = 'val.csv'
+    def _get_examples(self, data_dir, filename, size=-1):
         if size == -1:
             data_df = pd.read_csv(os.path.join(data_dir, filename), index_col=0)
-            return self._create_examples(data_df, "dev")
+            return self._create_examples(data_df)
         else:
             data_df = pd.read_csv(os.path.join(data_dir, filename), index_col=0)
-            return self._create_examples(data_df.sample(size), "dev")
+            return self._create_examples(data_df.sample(size))
     
-    def get_test_examples(self, data_dir, data_file_name, size=-1):
-        data_df = pd.read_csv(os.path.join(data_dir, data_file_name))
-        if size == -1:
-            return self._create_examples(data_df, "test")
-        else:
-            return self._create_examples(data_df.sample(size), "test")
+    def get_train_examples(self, data_dir, filename='train.csv', size=-1):
+        return self._get_examples(data_dir, filename, size)
+        
+    def get_dev_examples(self, data_dir, filename='val.csv', size=-1):
+        return self._get_examples(data_dir, filename, size)
+    
+    def get_test_examples(self, data_dir, filename='test.csv', size=-1):
+        return self._get_examples(data_dir, filename, size)
 
     def get_labels(self):
-        """See base class."""
-        if len(self.labels) == 0:
-            self.labels = ['ARTS', 'ARTS & CULTURE', 'BLACK VOICES', 'BUSINESS', 'COLLEGE', 'COMEDY', 'CRIME', 'CULTURE & ARTS', 'DIVORCE', 'EDUCATION', 'ENTERTAINMENT', 'ENVIRONMENT', 'FIFTY', 'FOOD & DRINK', 'GOOD NEWS', 'GREEN', 'HEALTHY LIVING', 'HOME & LIVING', 'IMPACT', 'LATINO VOICES', 'MEDIA', 'MONEY', 'PARENTING', 'PARENTS', 'POLITICS', 'QUEER VOICES', 'RELIGION', 'SCIENCE', 'SPORTS', 'STYLE', 'STYLE & BEAUTY', 'TASTE', 'TECH', 'TRAVEL', 'WEDDINGS', 'WEIRD NEWS', 'WELLNESS', 'WOMEN', 'WORLD NEWS', 'WORLDPOST']
         return self.labels
 
-    def _create_examples(self, df, set_type, labels_available=True):
+    def _create_examples(self, df, labels_available=True):
         """Creates examples for the training and dev sets."""
         examples = []
-        for (i, row) in enumerate(df.values):
-            guid = row[0]
-            text_a = row[2]
-            if labels_available:
-                labels = row[1]
-                #print('hiiiii',labels)
-            else:
-                labels = []
-                print("No Label Found")
+        for (i, row) in df.iterrows():
+            try:
+                guid = row['id']
+            except:
+                guid = i
+
+            text_a = row['text']
+            try:
+                labels = row['category']
+            except KeyError:
+                labels = 'OTHER'
+#                 print("No Label Found")
+            
             examples.append(
                 InputExample(guid=guid, text_a=text_a, labels=labels))
+        
         return examples
         
+
 def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer):
     """Loads a data file into a list of `InputBatch`s."""
 
@@ -114,17 +109,9 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
     for (ex_index, example) in enumerate(examples):
         tokens_a = tokenizer.tokenize(example.text_a)
 
-        tokens_b = None
-        if example.text_b:
-            tokens_b = tokenizer.tokenize(example.text_b)
-            # Modifies `tokens_a` and `tokens_b` in place so that the total
-            # length is less than the specified length.
-            # Account for [CLS], [SEP], [SEP] with "- 3"
-            _truncate_seq_pair(tokens_a, tokens_b, max_seq_length - 3)
-        else:
-            # Account for [CLS] and [SEP] with "- 2"
-            if len(tokens_a) > max_seq_length - 2:
-                tokens_a = tokens_a[:(max_seq_length - 2)]
+        # Account for [CLS] and [SEP] with "- 2"
+        if len(tokens_a) > max_seq_length - 2:
+            tokens_a = tokens_a[:(max_seq_length - 2)]
 
         # The convention in BERT is:
         # (a) For sequence pairs:
@@ -147,10 +134,6 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
         tokens = ["[CLS]"] + tokens_a + ["[SEP]"]
         segment_ids = [0] * len(tokens)
 
-        if tokens_b:
-            tokens += tokens_b + ["[SEP]"]
-            segment_ids += [1] * (len(tokens_b) + 1)
-
         input_ids = tokenizer.convert_tokens_to_ids(tokens)
 
         # The mask has 1 for real tokens and 0 for padding tokens. Only real
@@ -166,18 +149,8 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
         assert len(input_ids) == max_seq_length
         assert len(input_mask) == max_seq_length
         assert len(segment_ids) == max_seq_length
-
+        
         labels_ids = label_map[example.labels]
-        if ex_index < 0:
-            logger.info("*** Example ***")
-            logger.info("guid: %s" % (example.guid))
-            logger.info("tokens: %s" % " ".join(
-                    [str(x) for x in tokens]))
-            logger.info("input_ids: %s" % " ".join([str(x) for x in input_ids]))
-            logger.info("input_mask: %s" % " ".join([str(x) for x in input_mask]))
-            logger.info(
-                    "segment_ids: %s" % " ".join([str(x) for x in segment_ids]))
-            logger.info("label: %s (id = %s)" % (example.labels, labels_ids))
 
         features.append(
                 InputFeatures(input_ids=input_ids,
@@ -186,18 +159,27 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
                               label_ids=labels_ids))
     return features
 
-def _truncate_seq_pair(tokens_a, tokens_b, max_length):
-    """Truncates a sequence pair in place to the maximum length."""
 
-    # This is a simple heuristic which will always truncate the longer sequence
-    # one token at a time. This makes more sense than truncating an equal percent
-    # of tokens from each, since if one sequence is very short then each token
-    # that's truncated likely contains more information than a longer sequence.
-    while True:
-        total_length = len(tokens_a) + len(tokens_b)
-        if total_length <= max_length:
-            break
-        if len(tokens_a) > len(tokens_b):
-            tokens_a.pop()
-        else:
-            tokens_b.pop()
+def prepare_dataloader(features, bs):
+    all_input_ids = torch.tensor([f.input_ids for f in features], dtype=torch.long)
+    all_input_mask = torch.tensor([f.input_mask for f in features], dtype=torch.long)
+    all_segment_ids = torch.tensor([f.segment_ids for f in features], dtype=torch.long)
+    all_label_ids = torch.tensor([f.label_ids for f in features], dtype=torch.long)
+    data = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_label_ids)
+
+    sampler = RandomSampler(data)
+    dataloader = DataLoader(data, sampler=sampler, batch_size=bs)
+    return dataloader
+
+
+def get_data_splits(df, train_size=.6, test_size=.2, random_seed=200):
+    one_hot = pd.get_dummies(df['category'])
+    df2 = df.join(one_hot)
+
+    X = df2.sample(frac=1 - test_size, random_state=random_seed)
+    test = df2.drop(X.index)
+
+    train = X.sample(frac=(train_size / (1 - test_size)), random_state=random_seed)
+    val = X.drop(train.index)
+    
+    return train, val, test
