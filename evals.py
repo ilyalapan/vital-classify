@@ -46,7 +46,7 @@ def fit(bert_model, train_dataloader, val_dataloader, args):
             if args['eval_steps'] > 0 and (step + 1) % args['eval_steps'] == 0:
                 logger.info("Partial evaluation after epoch %d", i_ + 1)
                 evaluate(bert_model, val_dataloader, args, steps=50)
-                model.train()
+                bert_model.train()
 
         # Save a trained model
         logger.info("Saving model after epoch %d", i_ + 1)
@@ -142,6 +142,4 @@ def predict(bert_model, filename, processor, tokenizer, args):
         nb_eval_examples += batch[0].size(0)
         nb_eval_steps += 1
         
-        if step > 80:
-            break
     return pd.DataFrame(all_logits, columns=args['label_list']), all_raw_logits, all_embeddings
