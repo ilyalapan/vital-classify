@@ -6,7 +6,7 @@
 
 All the library versions are up-to-date with Google Colab (by April 2022). 
 
-Additional 
+Additionally, do `pip install pytorch-pretrained-bert` for getting BERT model classes
 
 ## Pretrained models
 
@@ -38,3 +38,9 @@ Training dataset is attached at `data/cleaned.csv`. Training for 1 epoch takes 2
 Training is performed using a sequence of 32 first words in the `text` column of a given dataset.
 
 The notebook contains comments on further details.
+
+### Training on new data
+
+If you want to train on another set of data, using another set of classes, all you need to do is:
+- Save your data to `data/cleaned.csv`. It must have `category` and `text` columns (redundant columns are fine)
+- Change `args['label_list']` so that it contains all the unique classes in the new dataset 
