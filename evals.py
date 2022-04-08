@@ -107,7 +107,7 @@ def accuracy(out, labels):
 def predict(bert_model, filename, processor, tokenizer, args):
     test_examples = processor.get_test_examples(args['data_dir'], filename=filename)
     test_features = data.convert_examples_to_features(test_examples, args['label_list'], args['max_seq_length'], tokenizer)
-    test_dataloader = data.prepare_dataloader(test_features, args['batch_size'])
+    test_dataloader = data.prepare_dataloader(test_features, args['batch_size'], test=True)
     
     all_logits = None
     all_raw_logits = None

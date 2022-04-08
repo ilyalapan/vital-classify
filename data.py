@@ -2,7 +2,7 @@ import logging
 import os
 import pandas as pd
 import torch
-from torch.utils.data import TensorDataset, DataLoader, RandomSampler
+from torch.utils.data import TensorDataset, DataLoader, RandomSampler, SequentialSampler
 
 
 class InputExample(object):
@@ -160,14 +160,17 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
     return features
 
 
-def prepare_dataloader(features, bs):
+def prepare_dataloader(features, bs, test=False):
     all_input_ids = torch.tensor([f.input_ids for f in features], dtype=torch.long)
     all_input_mask = torch.tensor([f.input_mask for f in features], dtype=torch.long)
     all_segment_ids = torch.tensor([f.segment_ids for f in features], dtype=torch.long)
     all_label_ids = torch.tensor([f.label_ids for f in features], dtype=torch.long)
     data = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_label_ids)
 
-    sampler = RandomSampler(data)
+    if test:
+        sampler = SequentialSampler(data)
+    else:
+        sampler = RandomSampler(data)
     dataloader = DataLoader(data, sampler=sampler, batch_size=bs)
     return dataloader
 
