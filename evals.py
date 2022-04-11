@@ -1,4 +1,5 @@
 import os 
+import json
 import numpy as np
 import pandas as pd
 import torch
@@ -114,8 +115,6 @@ def predict(bert_model, filename, processor, tokenizer, args):
     all_embeddings = None
     
     bert_model.eval()
-    eval_loss, eval_accuracy = 0, 0
-    nb_eval_steps, nb_eval_examples = 0, 0
     for step, batch in enumerate(tqdm(test_dataloader, desc="Prediction Iteration")):
         batch = tuple(t.to(args['device']) for t in batch)
         
@@ -138,8 +137,32 @@ def predict(bert_model, filename, processor, tokenizer, args):
             all_embeddings = embeddings.detach().cpu().numpy()
         else:
             all_embeddings = np.concatenate((all_embeddings, embeddings.detach().cpu().numpy()), axis=0)
-
-        nb_eval_examples += batch[0].size(0)
-        nb_eval_steps += 1
         
     return pd.DataFrame(all_logits, columns=args['label_list']), all_raw_logits, all_embeddings
+
+
+def predict_json(query, bert_model, processor, tokenizer, args):
+    inp_data = pd.DataFrame(json.loads(query))
+    inp_data['text'] = inp_data['title'] + ' ' + inp_data['text']
+    test_examples = processor.get_examples_from_df(inp_data)
+    test_features = data.convert_examples_to_features(test_examples, args['label_list'], args['max_seq_length'], tokenizer)
+    test_dataloader = data.prepare_dataloader(test_features, args['batch_size'], test=True)
+    
+    all_logits = None
+    
+    bert_model.eval()
+    for step, batch in enumerate(tqdm(test_dataloader, desc="Prediction Iteration")):
+        batch = tuple(t.to(args['device']) for t in batch)
+        
+        with torch.no_grad():
+            raw_logits = bert_model(*batch[:3])
+            logits = F.softmax(raw_logits, -1)
+            
+        if all_logits is None:
+            all_logits = logits.detach().cpu().numpy()
+        else:
+            all_logits = np.concatenate((all_logits, logits.detach().cpu().numpy()), axis=0)
+    
+    res = pd.DataFrame(all_logits, columns=args['label_list'])
+    res = pd.concat([inp_data[['id']], res], axis=1).to_json(orient='records')
+    return res

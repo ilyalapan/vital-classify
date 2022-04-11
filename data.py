@@ -75,6 +75,9 @@ class LabelTextProcessor(DataProcessor):
     def get_test_examples(self, data_dir, filename='test.csv', size=-1):
         return self._get_examples(data_dir, filename, size)
 
+    def get_examples_from_df(self, df):
+        return self._create_examples(df)
+
     def get_labels(self):
         return self.labels
 
