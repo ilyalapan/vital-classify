@@ -8,6 +8,8 @@ All the library versions are up-to-date with Google Colab (by April 2022).
 
 Additionally, do `pip install pytorch-pretrained-bert` for getting BERT model classes
 
+Alternatively, you could run `pip install -r requirements.txt`
+
 ## Pretrained models
 
 Models are stored in [Google Drive](https://drive.google.com/drive/folders/14zBJwsJvjo0eGZfnvJoBUcUKc1huv5eE?usp=sharing). Recommend using `finetuned_pytorch_model_32_ep5.bin` or `finetuned_pytorch_model_32_ep7.bin`. Epoch-3 version could be used as a checkpoint for fine-tuning the model given num_classes fixed.
@@ -28,6 +30,8 @@ Example dataset is attached at `data/new_test.csv`
 Predictions are performed on a sequence of 32 first words in the `text` column of a given dataset.
 
 The notebook contains comments on further details.
+
+`infer.py` provides an interface for a json-to-json prediction
 
 ## Training
 
